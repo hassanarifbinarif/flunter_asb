@@ -1,0 +1,181 @@
+version: '3.2'
+
+
+services:
+  flunter-frontend:
+    container_name: "${PROJECT_NAME}_server_${ENV}"
+    build:
+      context: ./flunter/
+      dockerfile: Dockerfile
+    command: bash -c 'python manage.py migrate && python manage.py runserver 0.0.0.0:8000'
+    volumes:
+      - "./flunter/:/code"
+    env_file:
+      - .env
+    ports:
+      - $WEB_PORT:8000
+    depends_on:
+      - flunter-db
+    networks:
+      - flunter_asb_network
+    
+
+  flunter-db:
+    container_name: "${PROJECT_NAME}_postgres_${ENV}"
+    image: postgis/postgis:14-3.3
+    volumes:
+      - flunter-postgres-data:/var/lib/postgres
+    environment:
+      POSTGRES_DB: "${FLUNTER_DB_NAME}"
+      POSTGRES_USER: "${FLUNTER_DB_USER}"
+      POSTGRES_PASSWORD: "${FLUNTER_DB_PASSWORD}"
+    networks:
+      - flunter_asb_network
+
+
+  aisearchbot-server:
+    container_name: "${ASB_PROJECT_NAME}_server_${ENV}"
+    build:
+      context: ./aisearchbot/
+      dockerfile: Dockerfile
+    command: bash -c 'python manage.py migrate && python manage.py runserver 0.0.0.0:8000'
+    volumes:
+      - "./aisearchbot/:/code"
+    env_file:
+      - .env
+    ports:
+      - $ASB_WEB_PORT:8000
+    depends_on:
+      - aisearchbot-db
+    networks:
+      - flunter_asb_network
+
+  aisearchbot-db:
+    container_name: "${ASB_PROJECT_NAME}_postgres_${ENV}"
+    image: postgis/postgis:14-3.3
+    volumes:
+      - aisearchbot-postgres-data:/var/lib/postgres
+    environment:
+      POSTGRES_DB: "${ASB_DB_NAME}"
+      POSTGRES_USER: "${ASB_DB_USER}"
+      POSTGRES_PASSWORD: "${ASB_DB_PASSWORD}"
+    networks:
+      - flunter_asb_network
+
+
+  # homme-backend:
+  #   container_name: "${PROJECT_NAME}_backend_${ENV}"
+  #   image: "${PROJECT_NAME}_backend_${ENV}_image"
+  #   build:
+  #     context: ./backend_api/
+  #     dockerfile: Dockerfile
+  #   restart: always
+  #   command: bash -c "
+  #     python manage.py migrate 
+  #     && python manage.py initdata
+  #     && gunicorn config.wsgi:application --workers 4 --bind 0.0.0.0:8000 --reload
+  #     "
+  #   volumes:
+  #     - "./backend_api/:/code"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - ENV=$ENV
+  #   ports:
+  #     - $WEB_PORT:8000
+  #   depends_on:
+  #     - homme-db
+  #   networks:
+  #     - homme_network
+
+
+  # homme-db:
+  #   container_name: "${PROJECT_NAME}_postgres_${ENV}"
+  #   image: postgis/postgis:14-3.3
+  #   restart: always
+  #   volumes:
+  #     - homme-postgres_data:/var/lib/postgres
+  #   environment:
+  #     POSTGRES_DB: "homme"
+  #     POSTGRES_USER: "adminuser"
+  #     POSTGRES_PASSWORD: "testadmin"
+  #   expose:
+  #     - $DB_PORT_EXTERNAL:5432
+  #   ports:
+  #     - $DB_PORT_EXTERNAL:5432
+  #   networks:
+  #     - homme_network
+
+  # homme-frontend:
+  #   container_name: "${PROJECT_NAME}_frontend_${ENV}"
+  #   build:
+  #     context: ./admin_frontend/
+  #     dockerfile: Dockerfile
+  #   command: bash -c 'gunicorn homme.wsgi:application --workers 4 --bind 0.0.0.0:8000 --reload'
+  #   restart: always
+  #   volumes:
+  #     - "./admin_frontend/:/code"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - ENV=$ENV
+  #   ports:
+  #     - $ADMIN_FRONTEND_WEB_PORT:8000
+  #   depends_on:
+  #     - homme-backend
+  #   networks:
+  #     - homme_network
+
+  nginx:
+    container_name: "flunter_asb_nginx_${ENV}"
+    image: nginx:latest
+    volumes:
+      - "./flunter/:/code/flunter-frontend"
+      - "./aisearchbot/:/code/aisearchbot-server"
+      - "./nginx/nginx-$ENV.conf:/etc/nginx/conf.d/default.conf"
+      - "/etc/letsencrypt/:/etc/letsencrypt/"
+    ports:
+      - $NGINX_PORT:80
+      - 443:443
+    depends_on:
+      - flunter-frontend
+      - aisearchbot-server
+    restart: always
+    links:
+      - flunter-frontend:flunter-frontend
+      - aisearchbot-server:aisearchbot-server
+    networks:
+      - flunter_asb_network
+
+  # nginx:
+  #   container_name: "${PROJECT_NAME}_nginx_${ENV}"
+  #   image: nginx:latest
+  #   volumes:
+  #     - "./backend_api/:/code/homme-backend"
+  #     - "./admin_frontend/:/code/homme-admin"
+  #     - "./nginx/nginx-${ENV}.conf:/etc/nginx/conf.d/default.conf"
+  #     - "/etc/letsencrypt/:/etc/letsencrypt/"
+  #     - "/var/log/nginx/:/var/log/nginx/"
+  #     - "./nginx/:/var/www/certbot/"
+  #   ports:
+  #     - $NGINX_PORT:80
+  #     - 443:443
+  #   depends_on:
+  #     - homme-backend
+  #     - homme-frontend
+  #   restart: always
+  #   links:
+  #     - homme-backend:homme-backend
+  #     - homme-frontend:homme-frontend
+  #   networks:
+  #     - homme_network
+
+
+volumes:
+  flunter-postgres-data:
+  aisearchbot-postgres-data:
+
+
+networks:
+  flunter_asb_network:
+    driver: bridge
