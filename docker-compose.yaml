@@ -65,6 +65,10 @@ services:
   redis:
     container_name: "${ASB_PROJECT_NAME}_redis_${ENV}"
     image: redis:alpine
+    networks:
+      - flunter_asb_network
+    volumes:
+      - "./aisearchbot/:/code"
 
   celery:
     container_name: "${ASB_PROJECT_NAME}_celery_${ENV}"
@@ -73,11 +77,13 @@ services:
       dockerfile: Dockerfile
     command: celery -A aisearchbot worker --loglevel=info
     volumes:
-      - "./:/code"
+      - "./aisearchbot/:/code"
     depends_on:
       - aisearchbot-db
       - aisearchbot-server
       - redis
+    networks:
+      - flunter_asb_network
 
 
   # homme-backend:
