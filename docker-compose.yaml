@@ -61,6 +61,23 @@ services:
       POSTGRES_PASSWORD: "${ASB_DB_PASSWORD}"
     networks:
       - flunter_asb_network
+    
+  redis:
+    container_name: "${ASB_PROJECT_NAME}_redis_${ENV}"
+    image: redis:alpine
+
+  celery:
+    container_name: "${ASB_PROJECT_NAME}_celery_${ENV}"
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    command: celery -A aisearchbot worker --loglevel=info
+    volumes:
+      - "./:/code"
+    depends_on:
+      - aisearchbot-db
+      - aisearchbot-server
+      - redis
 
 
   # homme-backend:
