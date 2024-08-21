@@ -73,7 +73,7 @@ services:
   celery:
     container_name: "${ASB_PROJECT_NAME}_celery_${ENV}"
     build:
-      context: ./
+      context: ./aisearchbot/
       dockerfile: Dockerfile
     command: celery -A aisearchbot worker --loglevel=info
     volumes:
